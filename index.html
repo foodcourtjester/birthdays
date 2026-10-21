@@ -1,1167 +1,495 @@
 <!DOCTYPE html>
-<html lang="en" class="h-full bg-slate-50">
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Celebration Tracker PWA - Live CSV Auto-Sync</title>
-    
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        brand: {
-                            50: '#fdf2f8',
-                            100: '#fce7f3',
-                            500: '#ec4899',
-                            600: '#db2777',
-                            700: '#be185d',
-                        }
-                    }
-                }
-            }
-        }
-    </script>
-
-    <!-- FontAwesome Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-
-    <style>
-        body {
-            font-family: 'Plus Jakarta Sans', sans-serif;
-        }
-        ::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #f1f5f9;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
-            border-radius: 9999px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #94a3b8;
-        }
-        @keyframes pulse-subtle {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-        .animate-sync-pulse {
-            animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-        }
-    </style>
-
-    <!-- Dynamic Web App Manifest Injection -->
-    <script>
-        const manifestData = {
-            name: "Celebration Tracker PWA",
-            short_name: "Celebrations",
-            description: "Birthday & Anniversary Reminder with Live CSV Auto-Sync",
-            start_url: "./",
-            display: "standalone",
-            background_color: "#f8fafc",
-            theme_color: "#db2777",
-            icons: [
-                {
-                    src: "https://cdn-icons-png.flaticon.com/512/3159/3159449.png",
-                    sizes: "512x512",
-                    type: "image/png",
-                    purpose: "any maskable"
-                }
-            ]
-        };
-        const manifestBlob = new Blob([JSON.stringify(manifestData)], { type: 'application/json' });
-        const manifestUrl = URL.createObjectURL(manifestBlob);
-        const link = document.createElement('link');
-        link.rel = 'manifest';
-        link.href = manifestUrl;
-        document.head.appendChild(link);
-    </script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Birthday & Anniversary Reminders</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
+  <!-- Canvas Confetti -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <!-- Dynamic PWA Manifest Link -->
+  <link id="pwa-manifest" rel="manifest" href="data:application/manifest+json;charset=utf-8,{&quot;name&quot;:&quot;Reminders&quot;,&quot;short_name&quot;:&quot;Reminders&quot;,&quot;start_url&quot;:&quot;./&quot;,&quot;display&quot;:&quot;standalone&quot;,&quot;background_color&quot;:&quot;%230f172a&quot;,&quot;theme_color&quot;:&quot;%23e11d48&quot;,&quot;icons&quot;:[{&quot;src&quot;:&quot;https://cdn-icons-png.flaticon.com/512/3159/3159449.png&quot;,&quot;sizes&quot;:&quot;192x192&quot;,&quot;type&quot;:&quot;image/png&quot;}]}">
+  <style>
+    @keyframes pulse-subtle {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+    .animate-pulse-subtle { animation: pulse-subtle 3s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+  </style>
 </head>
-<body class="h-full text-slate-800 flex flex-col min-h-screen">
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans selection:bg-rose-500 selection:text-white">
 
-    <!-- Top Header -->
-    <header class="bg-gradient-to-r from-rose-600 via-pink-600 to-purple-600 text-white shadow-lg sticky top-0 z-30">
-        <div class="max-w-6xl mx-auto px-4 py-3 sm:px-6 flex items-center justify-between">
-            <div class="flex items-center space-x-3">
-                <div class="bg-white/20 p-2.5 rounded-2xl backdrop-blur-md shadow-inner">
-                    <i class="fa-solid fa-cake-candles text-2xl text-white"></i>
-                </div>
-                <div>
-                    <div class="flex items-center gap-2">
-                        <h1 class="text-xl font-extrabold tracking-tight">Celebration Tracker</h1>
-                        <span class="bg-white/20 text-white text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider backdrop-blur-sm">PWA</span>
-                    </div>
-                    <p class="text-xs text-rose-100 hidden sm:block">Birthdays & Anniversaries Reminder with Auto CSV Sync</p>
-                </div>
-            </div>
-
-            <!-- Header Action Controls -->
-            <div class="flex items-center space-x-2">
-                <button id="pwaInstallBtn" onclick="installPWA()" class="hidden px-3 py-1.5 bg-amber-400 hover:bg-amber-300 text-slate-900 rounded-xl text-xs font-bold transition shadow-sm items-center gap-1.5">
-                    <i class="fa-solid fa-download"></i>
-                    <span>Install App</span>
-                </button>
-                <button id="notifyBtn" onclick="toggleNotifications()" class="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-xl text-xs font-semibold backdrop-blur-md transition flex items-center gap-1.5" title="Toggle Notifications">
-                    <i class="fa-solid fa-bell"></i>
-                    <span id="notifyBtnText" class="hidden md:inline">Notifications</span>
-                </button>
-                <button onclick="openGuideModal()" class="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-xl text-xs font-semibold backdrop-blur-md transition flex items-center gap-1.5" title="PWA & Deployment Guide">
-                    <i class="fa-solid fa-circle-question"></i>
-                    <span class="hidden lg:inline">PWA Files</span>
-                </button>
-                <div class="h-4 w-[1px] bg-white/30 mx-1"></div>
-                <button onclick="handleOpenFile()" class="px-3.5 py-1.5 bg-white text-rose-600 hover:bg-rose-50 rounded-xl text-xs font-bold transition shadow-sm flex items-center gap-1.5">
-                    <i class="fa-solid fa-folder-open"></i>
-                    <span class="hidden sm:inline">Open CSV</span>
-                </button>
-                <button onclick="handleSaveFile()" class="px-3.5 py-1.5 bg-rose-800 hover:bg-rose-900 text-white rounded-xl text-xs font-bold transition shadow-sm flex items-center gap-1.5">
-                    <i class="fa-solid fa-floppy-disk"></i>
-                    <span class="hidden sm:inline">Save CSV</span>
-                </button>
-            </div>
+  <!-- Header -->
+  <header class="bg-slate-900 border-b border-slate-800 sticky top-0 z-30 shadow-md">
+    <div class="max-w-6xl mx-auto px-4 py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="flex items-center space-x-3">
+        <div class="bg-rose-600 p-2.5 rounded-xl shadow-lg shadow-rose-900/40 text-white">
+          <i data-lucide="cake" class="w-6 h-6"></i>
         </div>
-    </header>
-
-    <!-- Main Container -->
-    <main class="flex-1 max-w-6xl w-full mx-auto p-4 sm:p-6 space-y-5">
-
-        <!-- Live File Auto-Sync Status Bar -->
-        <div id="fileStatusBar" class="bg-white border border-slate-200/80 rounded-2xl p-3.5 text-xs text-slate-600 flex flex-wrap items-center justify-between gap-3 shadow-sm">
-            <div class="flex items-center gap-2.5">
-                <div id="statusPulseDot" class="w-3 h-3 rounded-full bg-amber-500"></div>
-                <div>
-                    <span id="fileStatusTitle" class="font-bold text-slate-800">Working in Local Browser Storage</span>
-                    <span id="fileStatusSub" class="text-slate-500 block sm:inline sm:ml-1">(No CSV file currently linked)</span>
-                </div>
-            </div>
-
-            <!-- Auto-Check Polling Indicator & Actions -->
-            <div class="flex items-center gap-3">
-                <div id="autoSyncBadge" class="hidden items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200/60 rounded-lg text-[11px] font-semibold">
-                    <i class="fa-solid fa-arrows-rotate animate-spin text-[10px]"></i>
-                    <span>Auto-checking CSV updates</span>
-                </div>
-                <div class="flex items-center gap-2 text-slate-500 font-medium">
-                    <button onclick="triggerFileInput()" class="hover:text-rose-600 underline decoration-slate-300">Import CSV</button>
-                    <span>•</span>
-                    <button onclick="exportToCSV()" class="hover:text-rose-600 underline decoration-slate-300">Export CSV</button>
-                    <span>•</span>
-                    <button onclick="loadSampleData()" class="hover:text-rose-600 underline decoration-slate-300">Load Samples</button>
-                </div>
-            </div>
-            <input type="file" id="fallbackFileInput" accept=".csv" class="hidden" onchange="handleFallbackImport(event)">
+        <div>
+          <h1 class="text-xl font-bold tracking-tight bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
+            Reminders PWA
+          </h1>
+          <p id="file-status" class="text-xs text-slate-400 flex items-center gap-1.5 mt-0.5">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
+            Loading server reminders.csv...
+          </p>
         </div>
+      </div>
 
-        <!-- Upcoming Events Alert Banner (Next 7 Days Engine) -->
-        <section id="upcomingBannerSection" class="hidden">
-            <div class="bg-gradient-to-r from-amber-500 via-rose-500 to-pink-500 rounded-2xl p-0.5 shadow-md">
-                <div class="bg-white rounded-[15px] p-4 sm:p-5">
-                    <div class="flex items-center justify-between mb-3">
-                        <div class="flex items-center gap-2.5">
-                            <span class="flex h-3 w-3 relative">
-                              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-                              <span class="relative inline-flex rounded-full h-3 w-3 bg-rose-500"></span>
-                            </span>
-                            <h2 class="text-base sm:text-lg font-bold text-slate-900">Upcoming Celebrations (Next 7 Days)</h2>
-                        </div>
-                        <span id="upcomingBadgeCount" class="bg-rose-100 text-rose-700 font-bold text-xs px-3 py-1 rounded-full">0 events</span>
-                    </div>
+      <!-- Action Buttons -->
+      <div class="flex flex-wrap items-center gap-2">
+        <button onclick="openAddModal()" class="bg-rose-600 hover:bg-rose-500 text-white px-4 py-2 rounded-xl text-sm font-medium transition shadow-lg shadow-rose-900/30 flex items-center gap-2 cursor-pointer">
+          <i data-lucide="user-plus" class="w-4 h-4"></i> Add Person
+        </button>
+        <button onclick="downloadCSV()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3.5 py-2 rounded-xl text-sm font-medium transition border border-slate-700 flex items-center gap-2 cursor-pointer" title="Download updated CSV file">
+          <i data-lucide="download" class="w-4 h-4 text-slate-400"></i> Export CSV
+        </button>
+        <button onclick="requestNotificationPermission()" id="notif-btn" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-2 rounded-xl text-sm font-medium transition border border-slate-700 flex items-center gap-2 cursor-pointer" title="Enable browser alerts">
+          <i data-lucide="bell" class="w-4 h-4 text-amber-400"></i>
+        </button>
+      </div>
+    </div>
+  </header>
 
-                    <!-- Horizontal Scrollable Container -->
-                    <div id="upcomingEventsContainer" class="flex gap-4 overflow-x-auto pb-2 pt-1 scroll-smooth">
-                        <!-- Dynamic Cards Injected Here -->
-                    </div>
-                </div>
-            </div>
-        </section>
+  <!-- Main Container -->
+  <main class="max-w-6xl mx-auto px-4 py-8 flex-1 w-full space-y-8">
 
-        <!-- Search, Filter & Add Row -->
-        <section class="flex flex-col sm:flex-row gap-3 items-center justify-between bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
-            <div class="flex flex-1 w-full sm:w-auto gap-2">
-                <!-- Search Box -->
-                <div class="relative flex-1">
-                    <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
-                    <input type="text" id="searchInput" oninput="renderApp()" placeholder="Search by name, relationship, notes..." class="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 transition">
-                </div>
-                <!-- Filter Dropdown -->
-                <select id="filterType" onchange="renderApp()" class="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 text-slate-700 font-semibold">
-                    <option value="ALL">All Categories</option>
-                    <option value="Birthday">Birthdays</option>
-                    <option value="Anniversary">Anniversaries</option>
-                </select>
-                <!-- Month Filter -->
-                <select id="filterMonth" onchange="renderApp()" class="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 text-slate-700 font-semibold hidden md:block">
-                    <option value="ALL">All Months</option>
-                    <option value="1">Jan</option>
-                    <option value="2">Feb</option>
-                    <option value="3">Mar</option>
-                    <option value="4">Apr</option>
-                    <option value="5">May</option>
-                    <option value="6">Jun</option>
-                    <option value="7">Jul</option>
-                    <option value="8">Aug</option>
-                    <option value="9">Sep</option>
-                    <option value="10">Oct</option>
-                    <option value="11">Nov</option>
-                    <option value="12">Dec</option>
-                </select>
-            </div>
-
-            <button onclick="openModal()" class="w-full sm:w-auto px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-sm rounded-xl transition shadow-md hover:shadow-lg flex items-center justify-center gap-2">
-                <i class="fa-solid fa-plus"></i>
-                <span>Add Person</span>
-            </button>
-        </section>
-
-        <!-- Main Contacts & Events Display -->
-        <section>
-            <div class="flex items-center justify-between mb-3 px-1">
-                <h2 class="text-base font-bold text-slate-800">All Scheduled Reminders (<span id="totalCount">0</span>)</h2>
-                <div class="text-xs text-slate-500 flex items-center gap-1">
-                    <i class="fa-solid fa-arrow-down-short-wide text-rose-500"></i>
-                    <span>Ordered by upcoming celebration date</span>
-                </div>
-            </div>
-
-            <!-- Contacts Cards Grid -->
-            <div id="contactsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                <!-- Dynamic Content -->
-            </div>
-
-            <!-- Empty State -->
-            <div id="emptyState" class="hidden flex-col items-center justify-center py-16 px-4 bg-white rounded-2xl border border-dashed border-slate-200 text-center">
-                <div class="w-16 h-16 bg-rose-50 text-rose-500 rounded-2xl flex items-center justify-center text-2xl mb-3 shadow-inner">
-                    <i class="fa-solid fa-calendar-xmark"></i>
-                </div>
-                <h3 class="text-base font-bold text-slate-800">No Celebration Records Found</h3>
-                <p class="text-xs text-slate-500 max-w-sm mt-1 mb-4">Start tracking birthdays and anniversaries by creating an entry or connecting your local CSV spreadsheet file.</p>
-                <div class="flex gap-2">
-                    <button onclick="openModal()" class="px-4 py-2 bg-rose-600 text-white font-bold text-xs rounded-xl shadow-sm hover:bg-rose-700 transition">Add Entry</button>
-                    <button onclick="loadSampleData()" class="px-4 py-2 bg-slate-100 text-slate-700 font-bold text-xs rounded-xl hover:bg-slate-200 transition">Load Sample Dataset</button>
-                </div>
-            </div>
-        </section>
-
-    </main>
-
-    <!-- Modal for Adding / Editing Person -->
-    <div id="modalBackdrop" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100 relative animate-in fade-in zoom-in duration-150">
-            <button onclick="closeModal()" class="absolute right-4 top-4 text-slate-400 hover:text-slate-600 text-lg w-8 h-8 rounded-full flex items-center justify-center hover:bg-slate-100">
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-
-            <h3 id="modalTitle" class="text-lg font-bold text-slate-800 mb-4">Add New Celebration</h3>
-
-            <form id="contactForm" onsubmit="handleFormSubmit(event)" class="space-y-4">
-                <input type="hidden" id="editId">
-
-                <div>
-                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Full Name *</label>
-                    <input type="text" id="formName" required placeholder="e.g. Eleanor Vance" class="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-rose-500 focus:outline-none">
-                </div>
-
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Category *</label>
-                        <select id="formType" required class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-rose-500 focus:outline-none font-medium text-slate-700">
-                            <option value="Birthday">Birthday</option>
-                            <option value="Anniversary">Anniversary</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Relationship</label>
-                        <input type="text" id="formRelationship" placeholder="e.g., Sister, Colleague" class="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-rose-500 focus:outline-none">
-                    </div>
-                </div>
-
-                <div>
-                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Date (YYYY-MM-DD) *</label>
-                    <input type="date" id="formDate" required class="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-rose-500 focus:outline-none">
-                    <p class="text-[10px] text-slate-400 mt-1">Providing the birth/marriage year calculates turning age or milestone years.</p>
-                </div>
-
-                <div>
-                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Notes / Gift Ideas</label>
-                    <textarea id="formNotes" rows="2.5" placeholder="e.g. Favorite cake flavor, sweater size, or gift ideas" class="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-rose-500 focus:outline-none"></textarea>
-                </div>
-
-                <div class="flex justify-end gap-2 pt-2">
-                    <button type="button" onclick="closeModal()" class="px-4 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50">Cancel</button>
-                    <button type="submit" class="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold shadow-md">Save Record</button>
-                </div>
-            </form>
+    <!-- 7-Day Upcoming Alert Banner Area -->
+    <section id="upcoming-banner-section" class="hidden">
+      <div class="bg-gradient-to-r from-rose-950/80 via-slate-900 to-slate-900 border border-rose-800/50 rounded-2xl p-6 shadow-xl relative overflow-hidden">
+        <div class="absolute -right-10 -bottom-10 text-rose-600/10 pointer-events-none">
+          <i data-lucide="party-popper" class="w-48 h-48"></i>
         </div>
+        <div class="flex items-center gap-3 mb-4">
+          <div class="p-2 bg-rose-500/20 text-rose-400 rounded-lg">
+            <i data-lucide="sparkles" class="w-5 h-5"></i>
+          </div>
+          <h2 class="text-lg font-semibold text-rose-200">Coming Up in the Next 7 Days</h2>
+        </div>
+        <div id="upcoming-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 relative z-10">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+    </section>
+
+    <!-- Controls & Filters -->
+    <div class="flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-900/60 p-4 rounded-2xl border border-slate-800/80 backdrop-blur-md">
+      <div class="relative w-full sm:w-80">
+        <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3.5 top-3"></i>
+        <input type="text" id="search-input" oninput="filterReminders()" placeholder="Search name, event, notes..." 
+          class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2 text-sm text-slate-200 focus:outline-none focus:border-rose-500 transition">
+      </div>
+      <div class="flex items-center gap-3 w-full sm:w-auto justify-end">
+        <select id="type-filter" onchange="filterReminders()" class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-300 focus:outline-none focus:border-rose-500">
+          <option value="all">All Events</option>
+          <option value="Birthday">Birthdays Only</option>
+          <option value="Anniversary">Anniversaries Only</option>
+        </select>
+      </div>
     </div>
 
-    <!-- PWA & Hosting Help Modal -->
-    <div id="guideModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-slate-100 relative max-h-[90vh] overflow-y-auto">
-            <button onclick="closeGuideModal()" class="absolute right-4 top-4 text-slate-400 hover:text-slate-600 text-lg w-8 h-8 rounded-full flex items-center justify-center hover:bg-slate-100">
-                <i class="fa-solid fa-xmark"></i>
-            </button>
+    <!-- All Reminders Grid -->
+    <section>
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-sm font-semibold uppercase tracking-wider text-slate-400">All Reminders (<span id="total-count">0</span>)</h3>
+      </div>
+      <div id="reminders-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <!-- Populated dynamically -->
+      </div>
+    </section>
+  </main>
 
-            <h3 class="text-lg font-bold text-slate-800 mb-2">PWA Bundle & Deployment Guide</h3>
-            <p class="text-xs text-slate-500 mb-4">This application is completely self-contained in a single HTML file using Blob-injected Service Workers and Web Manifests. If you wish to host it on a server (e.g. GitHub Pages or Vercel), you can separate the files below:</p>
-
-            <div class="space-y-4 text-xs">
-                <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
-                    <div class="flex items-center justify-between mb-1">
-                        <span class="font-bold text-slate-800">1. manifest.json</span>
-                        <button onclick="copyToClipboard('manifestCode')" class="text-rose-600 font-bold hover:underline">Copy JSON</button>
-                    </div>
-                    <pre id="manifestCode" class="bg-slate-900 text-slate-100 p-2.5 rounded-lg text-[11px] overflow-x-auto">
-{
-  "name": "Celebration Tracker PWA",
-  "short_name": "Celebrations",
-  "start_url": "./",
-  "display": "standalone",
-  "background_color": "#f8fafc",
-  "theme_color": "#db2777",
-  "icons": [{ "src": "icon.png", "sizes": "512x512", "type": "image/png" }]
-}</pre>
-                </div>
-
-                <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
-                    <div class="flex items-center justify-between mb-1">
-                        <span class="font-bold text-slate-800">2. sw.js (Service Worker)</span>
-                        <button onclick="copyToClipboard('swCode')" class="text-rose-600 font-bold hover:underline">Copy JS</button>
-                    </div>
-                    <pre id="swCode" class="bg-slate-900 text-slate-100 p-2.5 rounded-lg text-[11px] overflow-x-auto">
-const CACHE_NAME = 'celeb-tracker-v2';
-self.addEventListener('install', (e) => self.skipWaiting());
-self.addEventListener('activate', (e) => self.clients.claim());
-self.addEventListener('fetch', (e) => {
-  e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
-});</pre>
-                </div>
-
-                <div class="bg-rose-50 p-3 rounded-xl border border-rose-200 text-rose-900">
-                    <h4 class="font-bold mb-1"><i class="fa-solid fa-circle-info mr-1"></i> How Live CSV Sync Works:</h4>
-                    <p class="leading-relaxed">When you click <strong>"Open CSV"</strong>, the app requests direct access to your local <code>reminders.csv</code> file. A background timer automatically monitors the file every 10 seconds (and when switching browser tabs). Any changes made directly in Excel or Notepad automatically update the dashboard display!</p>
-                </div>
-            </div>
-
-            <div class="flex justify-end pt-4">
-                <button onclick="closeGuideModal()" class="px-5 py-2 bg-slate-800 text-white rounded-xl text-xs font-bold hover:bg-slate-700">Close</button>
-            </div>
+  <!-- Add/Edit Modal -->
+  <div id="reminder-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl relative animate-in fade-in zoom-in duration-200">
+      <div class="flex items-center justify-between mb-5">
+        <h3 id="modal-title" class="text-lg font-bold text-white">Add New Person</h3>
+        <button onclick="closeModal()" class="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <form id="reminder-form" onsubmit="saveReminder(event)" class="space-y-4">
+        <input type="hidden" id="edit-index" value="-1">
+        <div>
+          <label class="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Full Name</label>
+          <input type="text" id="form-name" required placeholder="e.g. Sarah Connor" 
+            class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-rose-500">
         </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Event Type</label>
+            <select id="form-type" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-rose-500">
+              <option value="Birthday">Birthday</option>
+              <option value="Anniversary">Anniversary</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Date</label>
+            <input type="date" id="form-date" required 
+              class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-rose-500">
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Notes / Relationship (Optional)</label>
+          <input type="text" id="form-notes" placeholder="e.g. Sister, Work Colleague" 
+            class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-rose-500">
+        </div>
+        <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+          <button type="button" onclick="closeModal()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-xl text-sm font-medium transition">Cancel</button>
+          <button type="submit" class="bg-rose-600 hover:bg-rose-500 text-white px-5 py-2 rounded-xl text-sm font-medium transition shadow-lg shadow-rose-900/30">Save Reminder</button>
+        </div>
+      </form>
     </div>
+  </div>
 
-    <!-- Notification Toast -->
-    <div id="toast" class="fixed bottom-4 right-4 bg-slate-900 text-white px-4 py-3 rounded-2xl shadow-2xl z-50 text-xs font-medium translate-y-20 opacity-0 transition-all duration-300 flex items-center gap-2.5 border border-slate-700">
-        <i id="toastIcon" class="fa-solid fa-circle-info text-rose-400 text-sm"></i>
-        <span id="toastMsg">Notification message</span>
-    </div>
+  <!-- Toast Notification -->
+  <div id="toast" class="fixed bottom-6 right-6 bg-slate-900 border border-slate-700 text-slate-200 px-4 py-3 rounded-xl shadow-2xl z-50 transform translate-y-20 opacity-0 transition-all duration-300 flex items-center gap-3">
+    <i id="toast-icon" data-lucide="check-circle" class="w-5 h-5 text-emerald-400"></i>
+    <span id="toast-msg" class="text-sm font-medium">Notification message</span>
+  </div>
 
-    <!-- App Logic Script -->
-    <script>
-        // Constants
-        const STORAGE_KEY = 'celebration_reminders_pwa_data';
-        const IDB_NAME = 'CelebrationTrackerIDB';
-        const IDB_STORE = 'handles';
+  <!-- App Script Logic -->
+  <script>
+    let reminders = [];
 
-        // State Variables
-        let reminders = [];
-        let fileHandle = null;
-        let lastKnownFileModTime = 0;
-        let autoSyncInterval = null;
-        let deferredPWAInstallPrompt = null;
+    // CSV Header specification: Name, Type, Date, Notes
+    // Example: Sarah Connor,Birthday,1990-10-25,Sister
 
-        // ------------------ App Initialization ------------------
-        window.addEventListener('DOMContentLoaded', async () => {
-            initServiceWorker();
-            initPWAInstallPrompt();
-            await loadInitialData();
-            await setupFileHandleFromIndexedDB();
-            checkNotificationPermissionStatus();
-            startCSVAutoCheckLoop();
+    window.addEventListener('DOMContentLoaded', async () => {
+      lucide.createIcons();
+      await loadRemindersSource();
+      checkUpcomingNotifications();
+    });
+
+    async function loadRemindersSource() {
+      const statusEl = document.getElementById('file-status');
+      
+      // 1. Try loading from localStorage first if user has made local edits
+      const localSaved = localStorage.getItem('reminders_data');
+      if (localSaved) {
+        try {
+          reminders = JSON.parse(localSaved);
+          statusEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span> Loaded from browser storage`;
+          renderApp();
+          return;
+        } catch(e) {}
+      }
+
+      // 2. Fetch reminders.csv from the same folder
+      try {
+        const response = await fetch('./reminders.csv');
+        if (response.ok) {
+          const csvText = await response.text();
+          reminders = parseCSV(csvText);
+          localStorage.setItem('reminders_data', JSON.stringify(reminders));
+          statusEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span> Synced from reminders.csv`;
+          renderApp();
+          return;
+        }
+      } catch (err) {
+        console.log('No local reminders.csv found in folder or fetch blocked.');
+      }
+
+      // 3. Fallback sample data if no CSV found
+      reminders = [
+        { name: "John Doe", type: "Birthday", date: "1995-10-28", notes: "Best friend" },
+        { name: "Jane & Mark", type: "Anniversary", date: "2018-10-26", notes: "College roommates" },
+        { name: "Grandma Mary", type: "Birthday", date: "1950-11-15", notes: "Call in the morning" }
+      ];
+      localStorage.setItem('reminders_data', JSON.stringify(reminders));
+      statusEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-500 inline-block"></span> Using sample reminders (Create reminders.csv in repo)`;
+      renderApp();
+    }
+
+    function parseCSV(text) {
+      const lines = text.split(/\r?\n/);
+      const result = [];
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        // Simple comma split (handles standard CSV without quotes or basic format)
+        const parts = line.split(',').map(p => p.trim());
+        if (parts.length >= 3) {
+          // Skip header row if matches Name/Type/Date
+          if (i === 0 && parts[0].toLowerCase() === 'name') continue;
+          result.push({
+            name: parts[0],
+            type: parts[1] || 'Birthday',
+            date: parts[2],
+            notes: parts[3] || ''
+          });
+        }
+      }
+      return result;
+    }
+
+    function exportToCSVString() {
+      let csv = 'Name,Type,Date,Notes\n';
+      reminders.forEach(r => {
+        csv += `"${r.name}","${r.type}","${r.date}","${r.notes || ''}"\n`;
+      });
+      return csv;
+    }
+
+    function downloadCSV() {
+      const csvContent = exportToCSVString();
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'reminders.csv';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('Downloaded reminders.csv. Upload this file to your GitHub repository!', 'success');
+    }
+
+    function calculateEventDetails(dateStr) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const targetParts = dateStr.split('-');
+      if (targetParts.length !== 3) return { daysUntil: 999, formattedDate: dateStr, ageOrYears: '' };
+
+      const birthYear = parseInt(targetParts[0]);
+      const month = parseInt(targetParts[1]) - 1;
+      const day = parseInt(targetParts[2]);
+
+      let nextEventDate = new Date(today.getFullYear(), month, day);
+      nextEventDate.setHours(0, 0, 0, 0);
+
+      if (nextEventDate < today) {
+        nextEventDate.setFullYear(today.getFullYear() + 1);
+      }
+
+      const diffTime = nextEventDate - today;
+      const daysUntil = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+      const yearsCalc = nextEventDate.getFullYear() - birthYear;
+
+      return {
+        daysUntil,
+        nextDate: nextEventDate,
+        ageOrYears: yearsCalc > 0 ? yearsCalc : null
+      };
+    }
+
+    function renderApp() {
+      filterReminders();
+    }
+
+    function filterReminders() {
+      const query = document.getElementById('search-input').value.toLowerCase();
+      const typeFilter = document.getElementById('type-filter').value;
+
+      const filtered = reminders.filter(r => {
+        const matchesQuery = r.name.toLowerCase().includes(query) || 
+                             r.type.toLowerCase().includes(query) || 
+                             (r.notes && r.notes.toLowerCase().includes(query));
+        const matchesType = typeFilter === 'all' || r.type === typeFilter;
+        return matchesQuery && matchesType;
+      });
+
+      // Sort by upcoming days
+      filtered.sort((a, b) => {
+        return calculateEventDetails(a.date).daysUntil - calculateEventDetails(b.date).daysUntil;
+      });
+
+      document.getElementById('total-count').innerText = reminders.length;
+
+      // Render upcoming banner (next 7 days)
+      const upcoming = reminders.filter(r => {
+        const details = calculateEventDetails(r.date);
+        return details.daysUntil >= 0 && details.daysUntil <= 7;
+      }).sort((a, b) => calculateEventDetails(a.date).daysUntil - calculateEventDetails(b.date).daysUntil);
+
+      const bannerSection = document.getElementById('upcoming-banner-section');
+      const upcomingList = document.getElementById('upcoming-list');
+
+      if (upcoming.length > 0) {
+        bannerSection.classList.remove('hidden');
+        upcomingList.innerHTML = upcoming.map(r => {
+          const details = calculateEventDetails(r.date);
+          const dayText = details.daysUntil === 0 ? 'Today! 🎉' : details.daysUntil === 1 ? 'Tomorrow' : `In ${details.daysUntil} days`;
+          const badgeColor = details.daysUntil === 0 ? 'bg-rose-500 text-white animate-bounce' : 'bg-rose-500/20 text-rose-300';
+          
+          return `
+            <div class="bg-slate-900/90 border border-rose-500/30 rounded-xl p-4 flex items-center justify-between shadow-md">
+              <div class="space-y-1">
+                <div class="flex items-center gap-2">
+                  <span class="text-xs font-semibold px-2 py-0.5 rounded-md ${badgeColor}">${dayText}</span>
+                  <span class="text-xs text-slate-400">${r.type}</span>
+                </div>
+                <h4 class="font-bold text-white text-base">${r.name}</h4>
+                <p class="text-xs text-slate-400">${formatDateDisplay(r.date)} ${details.ageOrYears ? `(${details.ageOrYears} yrs)` : ''}</p>
+              </div>
+              <div class="text-rose-400 bg-rose-500/10 p-2.5 rounded-xl">
+                <i data-lucide="${r.type === 'Birthday' ? 'cake' : 'heart'}" class="w-5 h-5"></i>
+              </div>
+            </div>
+          `;
+        }).join('');
+      } else {
+        bannerSection.classList.add('hidden');
+      }
+
+      // Render grid
+      const grid = document.getElementById('reminders-grid');
+      if (filtered.length === 0) {
+        grid.innerHTML = `
+          <div class="col-span-full py-12 text-center bg-slate-900/40 border border-slate-800/80 rounded-2xl">
+            <i data-lucide="search-x" class="w-12 h-12 text-slate-600 mx-auto mb-3"></i>
+            <p class="text-slate-400 font-medium">No reminders found matching your filter.</p>
+          </div>
+        `;
+      } else {
+        grid.innerHTML = filtered.map((r, idx) => {
+          const originalIdx = reminders.indexOf(r);
+          const details = calculateEventDetails(r.date);
+          const dayText = details.daysUntil === 0 ? 'Today!' : details.daysUntil === 1 ? 'Tomorrow' : `In ${details.daysUntil} days`;
+
+          return `
+            <div class="bg-slate-900 border border-slate-800/80 hover:border-slate-700 rounded-2xl p-5 shadow-lg flex flex-col justify-between transition group">
+              <div>
+                <div class="flex items-center justify-between mb-3">
+                  <span class="text-xs px-2.5 py-1 rounded-lg font-medium ${r.type === 'Birthday' ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' : 'bg-pink-500/10 text-pink-400 border border-pink-500/20'}">
+                    ${r.type}
+                  </span>
+                  <span class="text-xs font-semibold text-slate-400 bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800">
+                    ${dayText}
+                  </span>
+                </div>
+                <h4 class="text-base font-bold text-white mb-1 group-hover:text-rose-400 transition">${r.name}</h4>
+                <p class="text-xs text-slate-400 flex items-center gap-1.5 mb-2">
+                  <i data-lucide="calendar" class="w-3.5 h-3.5 text-slate-500"></i> ${formatDateDisplay(r.date)} 
+                  ${details.ageOrYears ? `<span class="text-rose-400 font-medium">• Turning ${details.ageOrYears}</span>` : ''}
+                </p>
+                ${r.notes ? `<p class="text-xs text-slate-500 bg-slate-950/50 p-2 rounded-xl mt-2 italic">${r.notes}</p>` : ''}
+              </div>
+              <div class="flex items-center justify-end gap-2 pt-4 mt-4 border-t border-slate-800/60">
+                <button onclick="openEditModal(${originalIdx})" class="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 transition" title="Edit">
+                  <i data-lucide="pencil" class="w-4 h-4"></i>
+                </button>
+                <button onclick="deleteReminder(${originalIdx})" class="text-slate-400 hover:text-rose-400 p-1.5 rounded-lg hover:bg-slate-800 transition" title="Delete">
+                  <i data-lucide="trash-2" class="w-4 h-4"></i>
+                </button>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+      lucide.createIcons();
+    }
+
+    function formatDateDisplay(dateStr) {
+      if (!dateStr) return '';
+      const parts = dateStr.split('-');
+      if (parts.length !== 3) return dateStr;
+      const dateObj = new Date(parts[0], parts[1] - 1, parts[2]);
+      return dateObj.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    }
+
+    function openAddModal() {
+      document.getElementById('modal-title').innerText = 'Add New Person';
+      document.getElementById('edit-index').value = '-1';
+      document.getElementById('form-name').value = '';
+      document.getElementById('form-type').value = 'Birthday';
+      document.getElementById('form-date').value = '';
+      document.getElementById('form-notes').value = '';
+      document.getElementById('reminder-modal').classList.remove('hidden');
+    }
+
+    function openEditModal(index) {
+      const r = reminders[index];
+      document.getElementById('modal-title').innerText = 'Edit Reminder';
+      document.getElementById('edit-index').value = index;
+      document.getElementById('form-name').value = r.name;
+      document.getElementById('form-type').value = r.type;
+      document.getElementById('form-date').value = r.date;
+      document.getElementById('form-notes').value = r.notes || '';
+      document.getElementById('reminder-modal').classList.remove('hidden');
+    }
+
+    function closeModal() {
+      document.getElementById('reminder-modal').classList.add('hidden');
+    }
+
+    function saveReminder(event) {
+      event.preventDefault();
+      const idx = parseInt(document.getElementById('edit-index').value);
+      const name = document.getElementById('form-name').value.trim();
+      const type = document.getElementById('form-type').value;
+      const date = document.getElementById('form-date').value;
+      const notes = document.getElementById('form-notes').value.trim();
+
+      const newEntry = { name, type, date, notes };
+
+      if (idx === -1) {
+        reminders.push(newEntry);
+        showToast('Added reminder successfully!', 'success');
+      } else {
+        reminders[idx] = newEntry;
+        showToast('Updated reminder successfully!', 'success');
+      }
+
+      localStorage.setItem('reminders_data', JSON.stringify(reminders));
+      closeModal();
+      renderApp();
+    }
+
+    function deleteReminder(index) {
+      if (confirm(`Are you sure you want to delete ${reminders[index].name}?`)) {
+        reminders.splice(index, 1);
+        localStorage.setItem('reminders_data', JSON.stringify(reminders));
+        renderApp();
+        showToast('Reminder deleted.', 'success');
+      }
+    }
+
+    function showToast(msg, type = 'success') {
+      const toast = document.getElementById('toast');
+      const toastMsg = document.getElementById('toast-msg');
+      const toastIcon = document.getElementById('toast-icon');
+      
+      toastMsg.innerText = msg;
+      toastIcon.setAttribute('data-lucide', type === 'success' ? 'check-circle' : 'alert-circle');
+      lucide.createIcons();
+
+      toast.classList.remove('translate-y-20', 'opacity-0');
+      setTimeout(() => {
+        toast.classList.add('translate-y-20', 'opacity-0');
+      }, 3500);
+    }
+
+    async function requestNotificationPermission() {
+      if (!("Notification" in window)) {
+        alert("This browser does not support desktop notifications.");
+        return;
+      }
+      const perm = await Notification.requestPermission();
+      if (perm === "granted") {
+        showToast("Notifications enabled successfully!", "success");
+        new Notification("Reminders PWA", { body: "You'll now receive alerts for upcoming birthdays!" });
+      } else {
+        showToast("Notification permission denied.", "error");
+      }
+    }
+
+    function checkUpcomingNotifications() {
+      const upcoming = reminders.filter(r => calculateEventDetails(r.date).daysUntil === 0);
+      if (upcoming.length > 0 && Notification.permission === "granted") {
+        upcoming.forEach(r => {
+          new Notification(`🎉 ${r.type} Today!`, {
+            body: `${r.name}'s ${r.type.toLowerCase()} is today! ${r.notes ? '(' + r.notes + ')' : ''}`
+          });
         });
-
-        // Window Focus/Visibility Sync Listener
-        document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'visible') {
-                checkFileForExternalUpdates();
-            }
-        });
-
-        // ------------------ IndexedDB Handle Persistence ------------------
-        function openIDB() {
-            return new Promise((resolve, reject) => {
-                const request = indexedDB.open(IDB_NAME, 1);
-                request.onupgradeneeded = (e) => {
-                    const db = e.target.result;
-                    if (!db.objectStoreNames.contains(IDB_STORE)) {
-                        db.createObjectStore(IDB_STORE);
-                    }
-                };
-                request.onsuccess = () => resolve(request.result);
-                request.onerror = () => reject(request.error);
-            });
-        }
-
-        async function saveHandleToIDB(handle) {
-            try {
-                const db = await openIDB();
-                const tx = db.transaction(IDB_STORE, 'readwrite');
-                tx.objectStore(IDB_STORE).put(handle, 'csv_file_handle');
-                await tx.done;
-            } catch (err) {
-                console.log('IndexedDB save handle error:', err);
-            }
-        }
-
-        async function getHandleFromIDB() {
-            try {
-                const db = await openIDB();
-                return new Promise((resolve) => {
-                    const tx = db.transaction(IDB_STORE, 'readonly');
-                    const req = tx.objectStore(IDB_STORE).get('csv_file_handle');
-                    req.onsuccess = () => resolve(req.result);
-                    req.onerror = () => resolve(null);
-                });
-            } catch (err) {
-                return null;
-            }
-        }
-
-        async function setupFileHandleFromIndexedDB() {
-            const savedHandle = await getHandleFromIDB();
-            if (savedHandle && 'queryPermission' in savedHandle) {
-                try {
-                    const permission = await savedHandle.queryPermission({ mode: 'readwrite' });
-                    if (permission === 'granted') {
-                        fileHandle = savedHandle;
-                        const file = await fileHandle.getFile();
-                        lastKnownFileModTime = file.lastModified;
-                        updateFileStatusUI(file.name, true);
-                        await readDataFromFile(fileHandle);
-                    } else {
-                        // User needs to interact to grant read permission again
-                        updateFileStatusUI(savedHandle.name + ' (Click Open CSV to reconnect)', false);
-                    }
-                } catch (e) {
-                    console.log('Handle restore error:', e);
-                }
-            }
-        }
-
-        // ------------------ PWA Setup & Service Worker ------------------
-        function initServiceWorker() {
-            if ('serviceWorker' in navigator) {
-                const swContent = `
-                    const CACHE_NAME = 'celeb-tracker-v2';
-                    self.addEventListener('install', (e) => self.skipWaiting());
-                    self.addEventListener('activate', (e) => self.clients.claim());
-                    self.addEventListener('fetch', (e) => {
-                        e.respondWith(
-                            fetch(e.request).catch(() => caches.match(e.request))
-                        );
-                    });
-                `;
-                const blob = new Blob([swContent], { type: 'application/javascript' });
-                navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(err => console.log('SW register note:', err));
-            }
-        }
-
-        function initPWAInstallPrompt() {
-            window.addEventListener('beforeinstallprompt', (e) => {
-                e.preventDefault();
-                deferredPWAInstallPrompt = e;
-                const installBtn = document.getElementById('pwaInstallBtn');
-                installBtn.classList.remove('hidden');
-                installBtn.classList.add('flex');
-            });
-        }
-
-        async function installPWA() {
-            if (!deferredPWAInstallPrompt) return;
-            deferredPWAInstallPrompt.prompt();
-            const choice = await deferredPWAInstallPrompt.userChoice;
-            if (choice.outcome === 'accepted') {
-                showToast('App installed to your device!');
-            }
-            deferredPWAInstallPrompt = null;
-            document.getElementById('pwaInstallBtn').classList.add('hidden');
-        }
-
-        // ------------------ Data & Local Storage ------------------
-        async function loadInitialData() {
-            const saved = localStorage.getItem(STORAGE_KEY);
-            if (saved) {
-                try {
-                    reminders = JSON.parse(saved);
-                } catch (e) {
-                    reminders = getSampleDataset();
-                }
-            } else {
-                reminders = getSampleDataset();
-                saveToLocalStorage();
-            }
-            renderApp();
-        }
-
-        function saveToLocalStorage() {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(reminders));
-        }
-
-        function getSampleDataset() {
-            const today = new Date();
-            const dateOffset = (days, ageYears = 28) => {
-                const d = new Date(today);
-                d.setDate(d.getDate() + days);
-                const year = d.getFullYear() - ageYears;
-                const m = String(d.getMonth() + 1).padStart(2, '0');
-                const day = String(d.getDate()).padStart(2, '0');
-                return `${year}-${m}-${day}`;
-            };
-
-            return [
-                { id: '1', name: 'Sophia Miller', type: 'Birthday', date: dateOffset(0, 26), relationship: 'Best Friend', notes: 'Loves iced matcha lattes and vintage decor.' },
-                { id: '2', name: 'Marcus & Claire', type: 'Anniversary', date: dateOffset(2, 5), relationship: 'Siblings', notes: '5th Wooden Anniversary gift.' },
-                { id: '3', name: 'David Chen', type: 'Birthday', date: dateOffset(4, 34), relationship: 'Colleague', notes: 'Organize team coffee morning.' },
-                { id: '4', name: 'Aunt Olivia', type: 'Birthday', date: dateOffset(12, 52), relationship: 'Family', notes: 'Send handwritten greeting card.' },
-                { id: '5', name: 'Parents (John & Mary)', type: 'Anniversary', date: '1995-10-28', relationship: 'Parents', notes: 'Pearl anniversary dinner.' }
-            ];
-        }
-
-        function loadSampleData() {
-            if (confirm('Replace current view with sample celebration data?')) {
-                reminders = getSampleDataset();
-                saveToLocalStorage();
-                syncToFileIfAttached();
-                renderApp();
-                showToast('Sample records loaded!');
-            }
-        }
-
-        // ------------------ Core Date & Calculation Engine ------------------
-        function getNextOccurrence(dateStr) {
-            if (!dateStr) return null;
-            const parts = dateStr.split('-');
-            const now = new Date();
-            now.setHours(0, 0, 0, 0);
-
-            let month, day, origYear;
-            if (parts.length === 3) {
-                origYear = parseInt(parts[0], 10);
-                month = parseInt(parts[1], 10) - 1;
-                day = parseInt(parts[2], 10);
-            } else if (parts.length === 2) {
-                month = parseInt(parts[0], 10) - 1;
-                day = parseInt(parts[1], 10);
-            } else {
-                return null;
-            }
-
-            let nextDate = new Date(now.getFullYear(), month, day);
-            if (nextDate < now) {
-                nextDate.setFullYear(now.getFullYear() + 1);
-            }
-
-            const diffTime = nextDate - now;
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-            let turningYears = null;
-            if (origYear) {
-                turningYears = nextDate.getFullYear() - origYear;
-            }
-
-            return {
-                nextDate,
-                diffDays,
-                turningYears,
-                monthNum: month + 1,
-                formattedNextDate: nextDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
-            };
-        }
-
-        // ------------------ Render Engine ------------------
-        function renderApp() {
-            const searchVal = document.getElementById('searchInput').value.toLowerCase().trim();
-            const filterVal = document.getElementById('filterType').value;
-            const filterMonthVal = document.getElementById('filterMonth').value;
-
-            // Process calculated metadata
-            const processed = reminders.map(item => {
-                const occ = getNextOccurrence(item.date);
-                return { ...item, occurrence: occ };
-            });
-
-            // Sort by earliest upcoming days
-            processed.sort((a, b) => (a.occurrence?.diffDays ?? 999) - (b.occurrence?.diffDays ?? 999));
-
-            // Extract items in the next 7 days
-            const upcoming = processed.filter(item => item.occurrence && item.occurrence.diffDays <= 7);
-
-            // Filter for main dataset
-            const filtered = processed.filter(item => {
-                const matchesType = filterVal === 'ALL' || item.type === filterVal;
-                const matchesMonth = filterMonthVal === 'ALL' || (item.occurrence && item.occurrence.monthNum.toString() === filterMonthVal);
-                const matchesSearch = item.name.toLowerCase().includes(searchVal) || 
-                                      (item.relationship && item.relationship.toLowerCase().includes(searchVal)) ||
-                                      (item.notes && item.notes.toLowerCase().includes(searchVal));
-                return matchesType && matchesMonth && matchesSearch;
-            });
-
-            renderUpcomingSection(upcoming);
-            renderContactsGrid(filtered);
-
-            document.getElementById('totalCount').innerText = filtered.length;
-        }
-
-        function renderUpcomingSection(upcoming) {
-            const banner = document.getElementById('upcomingBannerSection');
-            const container = document.getElementById('upcomingEventsContainer');
-            const badge = document.getElementById('upcomingBadgeCount');
-
-            if (upcoming.length === 0) {
-                banner.classList.add('hidden');
-                return;
-            }
-
-            banner.classList.remove('hidden');
-            badge.innerText = `${upcoming.length} ${upcoming.length === 1 ? 'event' : 'events'}`;
-
-            container.innerHTML = upcoming.map(item => {
-                const occ = item.occurrence;
-                let daysLabel = `In ${occ.diffDays} days`;
-                let badgeBg = 'bg-rose-100 text-rose-700 font-bold';
-
-                if (occ.diffDays === 0) {
-                    daysLabel = '🎉 TODAY!';
-                    badgeBg = 'bg-rose-600 text-white font-black animate-pulse';
-                } else if (occ.diffDays === 1) {
-                    daysLabel = 'Tomorrow';
-                    badgeBg = 'bg-amber-500 text-white font-bold';
-                }
-
-                const icon = item.type === 'Birthday' ? 'fa-cake-candles text-rose-500' : 'fa-hand-holding-heart text-purple-500';
-
-                return `
-                    <div class="min-w-[230px] max-w-[250px] bg-slate-50 border border-slate-200/80 rounded-xl p-3.5 flex-shrink-0 flex flex-col justify-between shadow-sm hover:shadow transition">
-                        <div>
-                            <div class="flex items-center justify-between gap-1 mb-2">
-                                <span class="px-2.5 py-0.5 rounded-full text-[10px] ${badgeBg}">
-                                    ${daysLabel}
-                                </span>
-                                <span class="text-xs font-bold text-slate-500">
-                                    ${occ.formattedNextDate}
-                                </span>
-                            </div>
-                            <h4 class="font-bold text-sm text-slate-900 truncate">${escapeHtml(item.name)}</h4>
-                            <p class="text-xs text-slate-500 flex items-center gap-1.5 mt-1">
-                                <i class="fa-solid ${icon} text-xs"></i>
-                                <span>${item.type}${occ.turningYears ? ` (${occ.turningYears}${getOrdinalSuffix(occ.turningYears)})` : ''}</span>
-                            </p>
-                        </div>
-                        ${item.notes ? `<p class="text-[11px] text-slate-600 italic bg-white p-2 rounded-lg border border-slate-100 mt-2.5 truncate">${escapeHtml(item.notes)}</p>` : ''}
-                    </div>
-                `;
-            }).join('');
-        }
-
-        function renderContactsGrid(contacts) {
-            const grid = document.getElementById('contactsGrid');
-            const empty = document.getElementById('emptyState');
-
-            if (contacts.length === 0) {
-                grid.innerHTML = '';
-                empty.classList.remove('hidden');
-                empty.classList.add('flex');
-                return;
-            }
-
-            empty.classList.add('hidden');
-            empty.classList.remove('flex');
-
-            grid.innerHTML = contacts.map(item => {
-                const occ = item.occurrence;
-                const isBday = item.type === 'Birthday';
-                const iconClass = isBday ? 'fa-cake-candles text-rose-500 bg-rose-50 border-rose-100' : 'fa-hand-holding-heart text-purple-500 bg-purple-50 border-purple-100';
-                
-                let countdownText = `${occ.diffDays} days away`;
-                let badgeStyle = 'bg-slate-100 text-slate-600 font-semibold';
-
-                if (occ.diffDays === 0) {
-                    countdownText = '🎉 Today!';
-                    badgeStyle = 'bg-rose-600 text-white font-extrabold shadow-sm';
-                } else if (occ.diffDays <= 7) {
-                    badgeStyle = 'bg-amber-100 text-amber-800 font-bold';
-                }
-
-                return `
-                    <div class="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm hover:shadow-md transition flex flex-col justify-between">
-                        <div>
-                            <div class="flex items-start justify-between gap-2 mb-3">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-10 h-10 rounded-2xl border flex items-center justify-center text-lg ${iconClass}">
-                                        <i class="fa-solid ${isBday ? 'fa-cake-candles' : 'fa-hand-holding-heart'}"></i>
-                                    </div>
-                                    <div>
-                                        <h3 class="font-bold text-slate-900 text-sm leading-snug">${escapeHtml(item.name)}</h3>
-                                        <span class="text-xs text-slate-400 font-medium">${escapeHtml(item.relationship || item.type)}</span>
-                                    </div>
-                                </div>
-                                <span class="text-[11px] px-2.5 py-1 rounded-full ${badgeStyle}">
-                                    ${countdownText}
-                                </span>
-                            </div>
-
-                            <div class="space-y-1.5 my-3 text-xs bg-slate-50/70 p-3 rounded-xl border border-slate-100">
-                                <div class="flex items-center justify-between text-slate-500">
-                                    <span>Next Celebration:</span>
-                                    <span class="font-bold text-slate-800">${occ ? occ.formattedNextDate : item.date}</span>
-                                </div>
-                                ${occ && occ.turningYears ? `
-                                <div class="flex items-center justify-between text-slate-500">
-                                    <span>${isBday ? 'Turning Age:' : 'Milestone:'}</span>
-                                    <span class="font-bold text-slate-800">${occ.turningYears}${getOrdinalSuffix(occ.turningYears)} ${isBday ? 'years old' : 'anniversary'}</span>
-                                </div>` : ''}
-                                <div class="flex items-center justify-between text-slate-400 text-[11px]">
-                                    <span>Recorded Date:</span>
-                                    <span>${item.date}</span>
-                                </div>
-                            </div>
-
-                            ${item.notes ? `
-                                <div class="text-xs text-slate-600 bg-white p-2.5 rounded-xl border border-slate-100 mb-2">
-                                    <i class="fa-regular fa-note-sticky text-slate-400 mr-1.5"></i>
-                                    <span>${escapeHtml(item.notes)}</span>
-                                </div>
-                            ` : ''}
-                        </div>
-
-                        <div class="flex items-center justify-end gap-1 pt-2 border-t border-slate-50 mt-2">
-                            <button onclick="editPerson('${item.id}')" class="p-2 text-slate-400 hover:text-rose-600 rounded-xl hover:bg-rose-50 transition text-xs" title="Edit">
-                                <i class="fa-solid fa-pen-to-square"></i>
-                            </button>
-                            <button onclick="deletePerson('${item.id}')" class="p-2 text-slate-400 hover:text-red-600 rounded-xl hover:bg-red-50 transition text-xs" title="Delete">
-                                <i class="fa-solid fa-trash-can"></i>
-                            </button>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        // ------------------ CRUD Operations ------------------
-        function openModal(editId = null) {
-            const modal = document.getElementById('modalBackdrop');
-            const form = document.getElementById('contactForm');
-            const title = document.getElementById('modalTitle');
-            
-            form.reset();
-            document.getElementById('editId').value = '';
-
-            if (editId) {
-                const item = reminders.find(r => r.id === editId);
-                if (item) {
-                    title.innerText = 'Edit Celebration';
-                    document.getElementById('editId').value = item.id;
-                    document.getElementById('formName').value = item.name;
-                    document.getElementById('formType').value = item.type;
-                    document.getElementById('formRelationship').value = item.relationship || '';
-                    document.getElementById('formDate').value = item.date;
-                    document.getElementById('formNotes').value = item.notes || '';
-                }
-            } else {
-                title.innerText = 'Add New Celebration';
-            }
-
-            modal.classList.remove('hidden');
-        }
-
-        function closeModal() {
-            document.getElementById('modalBackdrop').classList.add('hidden');
-        }
-
-        async function handleFormSubmit(e) {
-            e.preventDefault();
-            const editId = document.getElementById('editId').value;
-            const name = document.getElementById('formName').value.trim();
-            const type = document.getElementById('formType').value;
-            const relationship = document.getElementById('formRelationship').value.trim();
-            const date = document.getElementById('formDate').value;
-            const notes = document.getElementById('formNotes').value.trim();
-
-            if (editId) {
-                reminders = reminders.map(r => r.id === editId ? { id: editId, name, type, relationship, date, notes } : r);
-                showToast('Record updated!');
-            } else {
-                const newItem = { id: Date.now().toString(), name, type, relationship, date, notes };
-                reminders.push(newItem);
-                showToast('New record created!');
-            }
-
-            saveToLocalStorage();
-            await syncToFileIfAttached();
-            renderApp();
-            closeModal();
-        }
-
-        function editPerson(id) { openModal(id); }
-
-        async function deletePerson(id) {
-            if (confirm('Delete this reminder?')) {
-                reminders = reminders.filter(r => r.id !== id);
-                saveToLocalStorage();
-                await syncToFileIfAttached();
-                renderApp();
-                showToast('Record deleted');
-            }
-        }
-
-        // ------------------ Live CSV File Access & Auto-Check Loop ------------------
-        
-        // CSV Parsing Engine
-        function parseCSV(text) {
-            const lines = text.split(/\r\n|\n/);
-            const results = [];
-            if (lines.length <= 1) return results;
-
-            for (let i = 1; i < lines.length; i++) {
-                const line = lines[i].trim();
-                if (!line) continue;
-
-                const cells = [];
-                let insideQuotes = false;
-                let current = '';
-
-                for (let j = 0; j < line.length; j++) {
-                    const char = line[j];
-                    if (char === '"' && line[j + 1] === '"') {
-                        current += '"';
-                        j++;
-                    } else if (char === '"') {
-                        insideQuotes = !insideQuotes;
-                    } else if (char === ',' && !insideQuotes) {
-                        cells.push(current);
-                        current = '';
-                    } else {
-                        current += char;
-                    }
-                }
-                cells.push(current);
-
-                if (cells.length >= 4) {
-                    results.push({
-                        id: Date.now().toString() + Math.random().toString().slice(2, 6),
-                        name: cells[0] || 'Unknown',
-                        type: cells[1] || 'Birthday',
-                        relationship: cells[2] || '',
-                        date: cells[3] || '',
-                        notes: cells[4] || ''
-                    });
-                }
-            }
-            return results;
-        }
-
-        function convertToCSV(data) {
-            const headers = ['Name', 'Category', 'Relationship', 'Date', 'Notes'];
-            const rows = data.map(item => [
-                escapeCsvCell(item.name),
-                escapeCsvCell(item.type),
-                escapeCsvCell(item.relationship || ''),
-                escapeCsvCell(item.date),
-                escapeCsvCell(item.notes || '')
-            ]);
-            return [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-        }
-
-        function escapeCsvCell(text) {
-            if (!text) return '""';
-            return `"${String(text).replace(/"/g, '""')}"`;
-        }
-
-        // Open CSV File Action
-        async function handleOpenFile() {
-            if ('showOpenFilePicker' in window) {
-                try {
-                    const [handle] = await window.showOpenFilePicker({
-                        types: [{ description: 'CSV Files', accept: { 'text/csv': ['.csv'] } }],
-                        multiple: false
-                    });
-                    fileHandle = handle;
-                    await saveHandleToIDB(fileHandle);
-
-                    const file = await fileHandle.getFile();
-                    lastKnownFileModTime = file.lastModified;
-
-                    await readDataFromFile(fileHandle);
-                    updateFileStatusUI(file.name, true);
-                    showToast(`Connected to ${file.name} with live auto-sync`);
-                } catch (err) {
-                    if (err.name !== 'AbortError') {
-                        console.error(err);
-                        showToast('Could not open file');
-                    }
-                }
-            } else {
-                triggerFileInput();
-            }
-        }
-
-        async function readDataFromFile(handle) {
-            try {
-                const file = await handle.getFile();
-                const text = await file.text();
-                const parsed = parseCSV(text);
-                if (parsed.length > 0) {
-                    reminders = parsed;
-                    saveToLocalStorage();
-                    renderApp();
-                    triggerNotificationsForUpcoming();
-                }
-            } catch (e) {
-                console.error('Error reading from file handle:', e);
-            }
-        }
-
-        // Save CSV Direct Action
-        async function handleSaveFile() {
-            const csvContent = convertToCSV(reminders);
-
-            if (fileHandle && 'createWritable' in fileHandle) {
-                try {
-                    const writable = await fileHandle.createWritable();
-                    await writable.write(csvContent);
-                    await writable.close();
-
-                    const file = await fileHandle.getFile();
-                    lastKnownFileModTime = file.lastModified;
-
-                    showToast('Saved directly to linked CSV file!');
-                    return;
-                } catch (err) {
-                    console.warn('Direct write failed, prompting picker:', err);
-                }
-            }
-
-            if ('showSaveFilePicker' in window) {
-                try {
-                    fileHandle = await window.showSaveFilePicker({
-                        suggestedName: 'reminders.csv',
-                        types: [{ description: 'CSV File', accept: { 'text/csv': ['.csv'] } }]
-                    });
-                    await saveHandleToIDB(fileHandle);
-                    const writable = await fileHandle.createWritable();
-                    await writable.write(csvContent);
-                    await writable.close();
-
-                    const file = await fileHandle.getFile();
-                    lastKnownFileModTime = file.lastModified;
-
-                    updateFileStatusUI(file.name, true);
-                    showToast('Saved & linked CSV file!');
-                } catch (err) {
-                    if (err.name !== 'AbortError') showToast('Failed to save CSV file');
-                }
-            } else {
-                exportToCSV();
-            }
-        }
-
-        async function syncToFileIfAttached() {
-            if (fileHandle && 'createWritable' in fileHandle) {
-                try {
-                    const csvContent = convertToCSV(reminders);
-                    const writable = await fileHandle.createWritable();
-                    await writable.write(csvContent);
-                    await writable.close();
-
-                    const file = await fileHandle.getFile();
-                    lastKnownFileModTime = file.lastModified;
-                } catch (e) {
-                    console.log('Background sync skip:', e);
-                }
-            }
-        }
-
-        // Auto-Check Loop (Every 10 Seconds)
-        function startCSVAutoCheckLoop() {
-            if (autoSyncInterval) clearInterval(autoSyncInterval);
-            autoSyncInterval = setInterval(() => {
-                checkFileForExternalUpdates();
-            }, 10000);
-        }
-
-        async function checkFileForExternalUpdates() {
-            if (!fileHandle) return;
-
-            try {
-                const file = await fileHandle.getFile();
-                if (file.lastModified > lastKnownFileModTime) {
-                    lastKnownFileModTime = file.lastModified;
-                    await readDataFromFile(fileHandle);
-                    showToast(`Detected external edits in ${file.name}. Updated!`);
-                }
-            } catch (e) {
-                // Permission loss or file unavailable
-            }
-        }
-
-        // Fallbacks for non File System Access API
-        function triggerFileInput() { document.getElementById('fallbackFileInput').click(); }
-
-        function handleFallbackImport(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = function(evt) {
-                const parsed = parseCSV(evt.target.result);
-                if (parsed.length > 0) {
-                    reminders = parsed;
-                    saveToLocalStorage();
-                    renderApp();
-                    updateFileStatusUI(file.name, false);
-                    showToast(`Imported ${file.name}`);
-                }
-            };
-            reader.readAsText(file);
-        }
-
-        function exportToCSV() {
-            const csvContent = convertToCSV(reminders);
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'reminders.csv';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            showToast('Downloaded reminders.csv');
-        }
-
-        function updateFileStatusUI(fileName, isDirectSync) {
-            const dot = document.getElementById('statusPulseDot');
-            const title = document.getElementById('fileStatusTitle');
-            const sub = document.getElementById('fileStatusSub');
-            const badge = document.getElementById('autoSyncBadge');
-
-            dot.className = 'w-3 h-3 rounded-full bg-emerald-500 shadow-sm';
-            title.innerText = `Linked File: ${fileName}`;
-            sub.innerText = isDirectSync ? '(Live Auto-Sync Active)' : '(Imported static copy)';
-            
-            if (isDirectSync) {
-                badge.classList.remove('hidden');
-                badge.classList.add('flex');
-            }
-        }
-
-        // ------------------ Web Notifications Engine ------------------
-        function checkNotificationPermissionStatus() {
-            const btnText = document.getElementById('notifyBtnText');
-            if (!('Notification' in window)) {
-                btnText.innerText = 'No Alert Support';
-                return;
-            }
-            btnText.innerText = Notification.permission === 'granted' ? 'Alerts Active' : 'Enable Alerts';
-        }
-
-        async function toggleNotifications() {
-            if (!('Notification' in window)) {
-                showToast('Notifications not supported on this browser');
-                return;
-            }
-
-            if (Notification.permission === 'granted') {
-                showToast('Notifications are already active');
-                triggerNotificationsForUpcoming(true);
-            } else if (Notification.permission !== 'denied') {
-                const permission = await Notification.requestPermission();
-                if (permission === 'granted') {
-                    checkNotificationPermissionStatus();
-                    showToast('Notifications enabled!');
-                    triggerNotificationsForUpcoming(true);
-                }
-            } else {
-                showToast('Please enable notifications in browser settings');
-            }
-        }
-
-        function triggerNotificationsForUpcoming(force = false) {
-            if (!('Notification' in window) || Notification.permission !== 'granted') return;
-
-            const upcoming = reminders
-                .map(r => ({ ...r, occ: getNextOccurrence(r.date) }))
-                .filter(r => r.occ && r.occ.diffDays <= 7);
-
-            if (upcoming.length > 0) {
-                const todayEvents = upcoming.filter(u => u.occ.diffDays === 0);
-                
-                if (todayEvents.length > 0) {
-                    const names = todayEvents.map(e => e.name).join(', ');
-                    new Notification('🎉 Celebration Today!', {
-                        body: `Today: ${names}! Wish them a happy celebration!`,
-                        icon: 'https://cdn-icons-png.flaticon.com/512/3159/3159449.png'
-                    });
-                } else if (force) {
-                    new Notification('Celebration Tracker', {
-                        body: `You have ${upcoming.length} celebrations coming up in the next 7 days!`,
-                        icon: 'https://cdn-icons-png.flaticon.com/512/3159/3159449.png'
-                    });
-                }
-            }
-        }
-
-        // ------------------ Helper & Modal Functions ------------------
-        function openGuideModal() { document.getElementById('guideModal').classList.remove('hidden'); }
-        function closeGuideModal() { document.getElementById('guideModal').classList.add('hidden'); }
-
-        function copyToClipboard(elementId) {
-            const text = document.getElementById(elementId).innerText;
-            const textarea = document.createElement('textarea');
-            textarea.value = text;
-            document.body.appendChild(textarea);
-            textarea.select();
-            document.execCommand('copy');
-            document.body.removeChild(textarea);
-            showToast('Copied to clipboard!');
-        }
-
-        function showToast(message) {
-            const toast = document.getElementById('toast');
-            document.getElementById('toastMsg').innerText = message;
-            toast.classList.remove('translate-y-20', 'opacity-0');
-            toast.classList.add('translate-y-0', 'opacity-100');
-            setTimeout(() => {
-                toast.classList.remove('translate-y-0', 'opacity-100');
-                toast.classList.add('translate-y-20', 'opacity-0');
-            }, 3000);
-        }
-
-        function getOrdinalSuffix(i) {
-            const j = i % 10, k = i % 100;
-            if (j == 1 && k != 11) return "st";
-            if (j == 2 && k != 12) return "nd";
-            if (j == 3 && k != 13) return "rd";
-            return "th";
-        }
-
-        function escapeHtml(str) {
-            if (!str) return '';
-            return str
-                .replace(/&/g, "&amp;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;")
-                .replace(/"/g, "&quot;")
-                .replace(/'/g, "&#039;");
-        }
-    </script>
+      }
+    }
+  </script>
 </body>
 </html>
