@@ -45,9 +45,10 @@
         <button onclick="openAddModal()" class="bg-rose-600 hover:bg-rose-500 text-white px-4 py-2 rounded-xl text-sm font-medium transition shadow-lg shadow-rose-900/30 flex items-center gap-2 cursor-pointer">
           <i data-lucide="user-plus" class="w-4 h-4"></i> Add Person
         </button>
-        <button onclick="downloadCSV()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3.5 py-2 rounded-xl text-sm font-medium transition border border-slate-700 flex items-center gap-2 cursor-pointer" title="Download updated CSV file">
-          <i data-lucide="download" class="w-4 h-4 text-slate-400"></i> Export CSV
-        </button>
+        <button onclick="reloadFromCSV()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3.5 py-2 rounded-xl text-sm font-medium transition border border-slate-700 flex items-center gap-2 cursor-pointer" title="Force reload from reminders.csv">
+  <i data-lucide="refresh-cw" class="w-4 h-4 text-slate-400"></i> Reload CSV
+</button>
+<button onclick="downloadCSV()" class="...">Export CSV</button>
         <button onclick="requestNotificationPermission()" id="notif-btn" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-2 rounded-xl text-sm font-medium transition border border-slate-700 flex items-center gap-2 cursor-pointer" title="Enable browser alerts">
           <i data-lucide="bell" class="w-4 h-4 text-amber-400"></i>
         </button>
@@ -206,26 +207,30 @@
     }
 
     function parseCSV(text) {
-      const lines = text.split(/\r?\n/);
-      const result = [];
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i].trim();
-        if (!line) continue;
-        // Simple comma split (handles standard CSV without quotes or basic format)
-        const parts = line.split(',').map(p => p.trim());
-        if (parts.length >= 3) {
-          // Skip header row if matches Name/Type/Date
-          if (i === 0 && parts[0].toLowerCase() === 'name') continue;
-          result.push({
-            name: parts[0],
-            type: parts[1] || 'Birthday',
-            date: parts[2],
-            notes: parts[3] || ''
-          });
-        }
-      }
-      return result;
+  const lines = text.split(/\r?\n/);
+  const result = [];
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    
+    // Regex to correctly parse CSV supporting quotes and commas inside quotes
+    const parts = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || line.split(',');
+    
+    // Clean up surrounding quotes and whitespace from each cell
+    const cleaned = parts.map(p => p.trim().replace(/^["'](.*)["']$/, '$1'));
+
+    if (cleaned.length >= 3) {
+      if (i === 0 && cleaned[0].toLowerCase() === 'name') continue; // Skip header
+      result.push({
+        name: cleaned[0],
+        type: cleaned[1] || 'Birthday',
+        date: cleaned[2],
+        notes: cleaned[3] || ''
+      });
     }
+  }
+  return result;
+}
 
     function exportToCSVString() {
       let csv = 'Name,Type,Date,Notes\n';
@@ -249,6 +254,13 @@
       showToast('Downloaded reminders.csv. Upload this file to your GitHub repository!', 'success');
     }
 
+
+  async function reloadFromCSV() {
+  localStorage.removeItem('reminders_data'); // Clear cached local storage
+  await loadRemindersSource();               // Force fetch fresh from reminders.csv
+  showToast('Reloaded fresh data from reminders.csv!', 'success');
+}
+    
     function calculateEventDetails(dateStr) {
   if (!dateStr || typeof dateStr !== 'string') {
     return { daysUntil: 999, formattedDate: 'Invalid Date', ageOrYears: null };
