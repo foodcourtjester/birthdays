@@ -12,13 +12,6 @@
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
   <!-- Dynamic PWA Manifest Link -->
   <link id="pwa-manifest" rel="manifest" href="data:application/manifest+json;charset=utf-8,{&quot;name&quot;:&quot;Reminders&quot;,&quot;short_name&quot;:&quot;Reminders&quot;,&quot;start_url&quot;:&quot;./&quot;,&quot;display&quot;:&quot;standalone&quot;,&quot;background_color&quot;:&quot;%230f172a&quot;,&quot;theme_color&quot;:&quot;%23e11d48&quot;,&quot;icons&quot;:[{&quot;src&quot;:&quot;https://cdn-icons-png.flaticon.com/512/3159/3159449.png&quot;,&quot;sizes&quot;:&quot;192x192&quot;,&quot;type&quot;:&quot;image/png&quot;}]}">
-  <style>
-    @keyframes pulse-subtle {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.7; }
-    }
-    .animate-pulse-subtle { animation: pulse-subtle 3s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
-  </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans selection:bg-rose-500 selection:text-white">
 
@@ -30,12 +23,10 @@
           <i data-lucide="cake" class="w-6 h-6"></i>
         </div>
         <div>
-          <h1 class="text-xl font-bold tracking-tight bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
-            Reminders PWA
-          </h1>
+          <h1 class="text-xl font-bold tracking-tight text-white">Reminders PWA</h1>
           <p id="file-status" class="text-xs text-slate-400 flex items-center gap-1.5 mt-0.5">
             <span class="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
-            Loading server reminders.csv...
+            Initializing reminders...
           </p>
         </div>
       </div>
@@ -45,11 +36,13 @@
         <button onclick="openAddModal()" class="bg-rose-600 hover:bg-rose-500 text-white px-4 py-2 rounded-xl text-sm font-medium transition shadow-lg shadow-rose-900/30 flex items-center gap-2 cursor-pointer">
           <i data-lucide="user-plus" class="w-4 h-4"></i> Add Person
         </button>
-        <button onclick="reloadFromCSV()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3.5 py-2 rounded-xl text-sm font-medium transition border border-slate-700 flex items-center gap-2 cursor-pointer" title="Force reload from reminders.csv">
-  <i data-lucide="refresh-cw" class="w-4 h-4 text-slate-400"></i> Reload CSV
-</button>
-<button onclick="downloadCSV()" class="...">Export CSV</button>
-        <button onclick="requestNotificationPermission()" id="notif-btn" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-2 rounded-xl text-sm font-medium transition border border-slate-700 flex items-center gap-2 cursor-pointer" title="Enable browser alerts">
+        <button onclick="reloadFromCSV()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-2 rounded-xl text-sm font-medium transition border border-slate-700 flex items-center gap-2 cursor-pointer" title="Reload fresh from reminders.csv">
+          <i data-lucide="refresh-cw" class="w-4 h-4 text-slate-400"></i> Reload CSV
+        </button>
+        <button onclick="downloadCSV()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3.5 py-2 rounded-xl text-sm font-medium transition border border-slate-700 flex items-center gap-2 cursor-pointer" title="Export CSV file">
+          <i data-lucide="download" class="w-4 h-4 text-slate-400"></i> Export CSV
+        </button>
+        <button onclick="requestNotificationPermission()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-2 rounded-xl text-sm font-medium transition border border-slate-700 flex items-center gap-2 cursor-pointer" title="Enable browser alerts">
           <i data-lucide="bell" class="w-4 h-4 text-amber-400"></i>
         </button>
       </div>
@@ -59,21 +52,16 @@
   <!-- Main Container -->
   <main class="max-w-6xl mx-auto px-4 py-8 flex-1 w-full space-y-8">
 
-    <!-- 7-Day Upcoming Alert Banner Area -->
+    <!-- Upcoming Banner Section -->
     <section id="upcoming-banner-section" class="hidden">
       <div class="bg-gradient-to-r from-rose-950/80 via-slate-900 to-slate-900 border border-rose-800/50 rounded-2xl p-6 shadow-xl relative overflow-hidden">
-        <div class="absolute -right-10 -bottom-10 text-rose-600/10 pointer-events-none">
-          <i data-lucide="party-popper" class="w-48 h-48"></i>
-        </div>
         <div class="flex items-center gap-3 mb-4">
           <div class="p-2 bg-rose-500/20 text-rose-400 rounded-lg">
             <i data-lucide="sparkles" class="w-5 h-5"></i>
           </div>
           <h2 class="text-lg font-semibold text-rose-200">Coming Up in the Next 7 Days</h2>
         </div>
-        <div id="upcoming-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 relative z-10">
-          <!-- Populated dynamically -->
-        </div>
+        <div id="upcoming-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 relative z-10"></div>
       </div>
     </section>
 
@@ -81,11 +69,11 @@
     <div class="flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-900/60 p-4 rounded-2xl border border-slate-800/80 backdrop-blur-md">
       <div class="relative w-full sm:w-80">
         <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3.5 top-3"></i>
-        <input type="text" id="search-input" oninput="filterReminders()" placeholder="Search name, event, notes..." 
+        <input type="text" id="search-input" oninput="renderApp()" placeholder="Search name, event, notes..." 
           class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2 text-sm text-slate-200 focus:outline-none focus:border-rose-500 transition">
       </div>
       <div class="flex items-center gap-3 w-full sm:w-auto justify-end">
-        <select id="type-filter" onchange="filterReminders()" class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-300 focus:outline-none focus:border-rose-500">
+        <select id="type-filter" onchange="renderApp()" class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-300 focus:outline-none focus:border-rose-500">
           <option value="all">All Events</option>
           <option value="Birthday">Birthdays Only</option>
           <option value="Anniversary">Anniversaries Only</option>
@@ -98,15 +86,13 @@
       <div class="flex items-center justify-between mb-4">
         <h3 class="text-sm font-semibold uppercase tracking-wider text-slate-400">All Reminders (<span id="total-count">0</span>)</h3>
       </div>
-      <div id="reminders-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <!-- Populated dynamically -->
-      </div>
+      <div id="reminders-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
     </section>
   </main>
 
   <!-- Add/Edit Modal -->
   <div id="reminder-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl relative animate-in fade-in zoom-in duration-200">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl relative">
       <div class="flex items-center justify-between mb-5">
         <h3 id="modal-title" class="text-lg font-bold text-white">Add New Person</h3>
         <button onclick="closeModal()" class="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition">
@@ -135,8 +121,8 @@
           </div>
         </div>
         <div>
-          <label class="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Notes / Relationship (Optional)</label>
-          <input type="text" id="form-notes" placeholder="e.g. Sister, Work Colleague" 
+          <label class="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Notes (Optional)</label>
+          <input type="text" id="form-notes" placeholder="e.g. Sister, Best Friend" 
             class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-rose-500">
         </div>
         <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
@@ -153,23 +139,19 @@
     <span id="toast-msg" class="text-sm font-medium">Notification message</span>
   </div>
 
-  <!-- App Script Logic -->
+  <!-- Script Logic -->
   <script>
     let reminders = [];
-
-    // CSV Header specification: Name, Type, Date, Notes
-    // Example: Sarah Connor,Birthday,1990-10-25,Sister
 
     window.addEventListener('DOMContentLoaded', async () => {
       lucide.createIcons();
       await loadRemindersSource();
-      checkUpcomingNotifications();
     });
 
     async function loadRemindersSource() {
       const statusEl = document.getElementById('file-status');
       
-      // 1. Try loading from localStorage first if user has made local edits
+      // 1. Try loading from localStorage first
       const localSaved = localStorage.getItem('reminders_data');
       if (localSaved) {
         try {
@@ -180,7 +162,7 @@
         } catch(e) {}
       }
 
-      // 2. Fetch reminders.csv from the same folder
+      // 2. Fetch reminders.csv from server/repository folder
       try {
         const response = await fetch('./reminders.csv');
         if (response.ok) {
@@ -192,45 +174,65 @@
           return;
         }
       } catch (err) {
-        console.log('No local reminders.csv found in folder or fetch blocked.');
+        console.log('No local reminders.csv found via fetch.');
       }
 
-      // 3. Fallback sample data if no CSV found
+      // 3. Fallback sample data
       reminders = [
         { name: "John Doe", type: "Birthday", date: "1995-10-28", notes: "Best friend" },
-        { name: "Jane & Mark", type: "Anniversary", date: "2018-10-26", notes: "College roommates" },
+        { name: "Sarah Connor", type: "Anniversary", date: "2018-06-12", notes: "Wedding anniversary" },
         { name: "Grandma Mary", type: "Birthday", date: "1950-11-15", notes: "Call in the morning" }
       ];
       localStorage.setItem('reminders_data', JSON.stringify(reminders));
-      statusEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-500 inline-block"></span> Using sample reminders (Create reminders.csv in repo)`;
+      statusEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-500 inline-block"></span> Using sample data (reminders.csv not found)`;
       renderApp();
     }
 
-    function parseCSV(text) {
-  const lines = text.split(/\r?\n/);
-  const result = [];
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
-    if (!line) continue;
-    
-    // Regex to correctly parse CSV supporting quotes and commas inside quotes
-    const parts = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || line.split(',');
-    
-    // Clean up surrounding quotes and whitespace from each cell
-    const cleaned = parts.map(p => p.trim().replace(/^["'](.*)["']$/, '$1'));
-
-    if (cleaned.length >= 3) {
-      if (i === 0 && cleaned[0].toLowerCase() === 'name') continue; // Skip header
-      result.push({
-        name: cleaned[0],
-        type: cleaned[1] || 'Birthday',
-        date: cleaned[2],
-        notes: cleaned[3] || ''
-      });
+    async function reloadFromCSV() {
+      localStorage.removeItem('reminders_data');
+      await loadRemindersSource();
+      showToast('Reloaded fresh data from reminders.csv!', 'success');
     }
-  }
-  return result;
-}
+
+    // Bulletproof CSV line parser that handles quotes and commas correctly without messing up names
+    function parseCSVLine(text) {
+      const result = [];
+      let entry = '';
+      let inQuotes = false;
+      for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+          result.push(entry.trim().replace(/^["'](.*)["']$/, '$1'));
+          entry = '';
+        } else {
+          entry += char;
+        }
+      }
+      result.push(entry.trim().replace(/^["'](.*)["']$/, '$1'));
+      return result;
+    }
+
+    function parseCSV(text) {
+      const lines = text.split(/\r?\n/);
+      const result = [];
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        const parts = parseCSVLine(line);
+        if (parts.length >= 3) {
+          if (i === 0 && parts[0].toLowerCase() === 'name') continue; // Skip header
+          result.push({
+            name: parts[0],
+            type: parts[1] || 'Birthday',
+            date: parts[2],
+            notes: parts[3] || ''
+          });
+        }
+      }
+      return result;
+    }
 
     function exportToCSVString() {
       let csv = 'Name,Type,Date,Notes\n';
@@ -251,95 +253,69 @@
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      showToast('Downloaded reminders.csv. Upload this file to your GitHub repository!', 'success');
+      showToast('Downloaded reminders.csv!', 'success');
     }
 
-
-  async function reloadFromCSV() {
-  localStorage.removeItem('reminders_data'); // Clear cached local storage
-  await loadRemindersSource();               // Force fetch fresh from reminders.csv
-  showToast('Reloaded fresh data from reminders.csv!', 'success');
-}
-    
     function calculateEventDetails(dateStr) {
-  if (!dateStr || typeof dateStr !== 'string') {
-    return { daysUntil: 999, formattedDate: 'Invalid Date', ageOrYears: null };
-  }
+      if (!dateStr || typeof dateStr !== 'string') return { daysUntil: 999, nextDate: null, ageOrYears: null };
+      const clean = dateStr.trim();
+      let year, month, day;
 
-  const cleanStr = dateStr.trim();
-  let year, month, day;
-
-  // Case 1: Formatted with slashes e.g. "10/28/1995" or "10/28/95"
-  if (cleanStr.includes('/')) {
-    const parts = cleanStr.split('/');
-    if (parts.length === 3) {
-      // If year is first: YYYY/MM/DD
-      if (parts[0].length === 4) {
-        year = parseInt(parts[0], 10);
-        month = parseInt(parts[1], 10) - 1;
-        day = parseInt(parts[2], 10);
-      } else {
-        // Standard US format: MM/DD/YYYY
-        month = parseInt(parts[0], 10) - 1;
-        day = parseInt(parts[1], 10);
-        year = parseInt(parts[2], 10);
-        if (year < 100) year += year > 30 ? 1900 : 2000; // Handle 2-digit years
+      if (clean.includes('-')) {
+        const p = clean.split('-');
+        if (p[0].length === 4) { // YYYY-MM-DD
+          year = parseInt(p[0], 10);
+          month = parseInt(p[1], 10) - 1;
+          day = parseInt(p[2], 10);
+        } else { // MM-DD-YYYY
+          month = parseInt(p[0], 10) - 1;
+          day = parseInt(p[1], 10);
+          year = parseInt(p[2], 10);
+        }
+      } else if (clean.includes('/')) {
+        const p = clean.split('/');
+        if (p[0].length === 4) { // YYYY/MM/DD
+          year = parseInt(p[0], 10);
+          month = parseInt(p[1], 10) - 1;
+          day = parseInt(p[2], 10);
+        } else { // MM/DD/YYYY
+          month = parseInt(p[0], 10) - 1;
+          day = parseInt(p[1], 10);
+          year = parseInt(p[2], 10);
+          if (year < 100) year += year > 30 ? 1900 : 2000;
+        }
       }
-    }
-  } 
-  // Case 2: Formatted with dashes e.g. "1995-10-28"
-  else if (cleanStr.includes('-')) {
-    const parts = cleanStr.split('-');
-    if (parts.length === 3) {
-      if (parts[0].length === 4) {
-        // ISO Format: YYYY-MM-DD
-        year = parseInt(parts[0], 10);
-        month = parseInt(parts[1], 10) - 1;
-        day = parseInt(parts[2], 10);
-      } else {
-        // MM-DD-YYYY
-        month = parseInt(parts[0], 10) - 1;
-        day = parseInt(parts[1], 10);
-        year = parseInt(parts[2], 10);
+
+      if (isNaN(year) || isNaN(month) || isNaN(day)) return { daysUntil: 999, nextDate: null, ageOrYears: null };
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      let nextEvent = new Date(today.getFullYear(), month, day);
+      nextEvent.setHours(0, 0, 0, 0);
+
+      if (nextEvent < today) {
+        nextEvent.setFullYear(today.getFullYear() + 1);
       }
+
+      const diffTime = nextEvent - today;
+      const daysUntil = Math.round(diffTime / (1000 * 60 * 60 * 24));
+      const ageOrYears = nextEvent.getFullYear() - year;
+
+      return {
+        daysUntil,
+        nextDate: nextEvent,
+        ageOrYears: ageOrYears > 0 ? ageOrYears : null
+      };
     }
-  }
 
-  // Validate parsed values
-  if (isNaN(year) || isNaN(month) || isNaN(day) || month < 0 || month > 11 || day < 1 || day > 31) {
-    return { daysUntil: 999, formattedDate: cleanStr, ageOrYears: null };
-  }
-
-  // Calculate current date normalized to midnight
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  // Target date normalized to midnight for accurate calculation
-  let nextEventDate = new Date(today.getFullYear(), month, day);
-  nextEventDate.setHours(0, 0, 0, 0);
-
-  // If the event date already passed this year, check next year
-  if (nextEventDate < today) {
-    nextEventDate.setFullYear(today.getFullYear() + 1);
-  }
-
-  const diffTime = nextEventDate - today;
-  const daysUntil = Math.round(diffTime / (1000 * 60 * 60 * 24));
-
-  const ageOrYears = nextEventDate.getFullYear() - year;
-
-  return {
-    daysUntil,
-    nextDate: nextEventDate,
-    ageOrYears: ageOrYears > 0 ? ageOrYears : null
-  };
-}
+    function formatDateDisplay(dateStr) {
+      const details = calculateEventDetails(dateStr);
+      if (details.daysUntil === 999 || !details.nextDate) return dateStr;
+      return details.nextDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    }
 
     function renderApp() {
-      filterReminders();
-    }
-
-    function filterReminders() {
       const query = document.getElementById('search-input').value.toLowerCase();
       const typeFilter = document.getElementById('type-filter').value;
 
@@ -351,11 +327,7 @@
         return matchesQuery && matchesType;
       });
 
-      // Sort by upcoming days
-      filtered.sort((a, b) => {
-        return calculateEventDetails(a.date).daysUntil - calculateEventDetails(b.date).daysUntil;
-      });
-
+      filtered.sort((a, b) => calculateEventDetails(a.date).daysUntil - calculateEventDetails(b.date).daysUntil);
       document.getElementById('total-count').innerText = reminders.length;
 
       // Render upcoming banner (next 7 days)
@@ -442,12 +414,6 @@
       lucide.createIcons();
     }
 
-    function formatDateDisplay(dateStr) {
-  const details = calculateEventDetails(dateStr);
-  if (details.daysUntil === 999 || !details.nextDate) return dateStr;
-  return details.nextDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-}
-
     function openAddModal() {
       document.getElementById('modal-title').innerText = 'Add New Person';
       document.getElementById('edit-index').value = '-1';
@@ -528,20 +494,9 @@
       const perm = await Notification.requestPermission();
       if (perm === "granted") {
         showToast("Notifications enabled successfully!", "success");
-        new Notification("Reminders PWA", { body: "You'll now receive alerts for upcoming birthdays!" });
+        new Notification("Reminders PWA", { body: "You'll now receive alerts for upcoming events!" });
       } else {
         showToast("Notification permission denied.", "error");
-      }
-    }
-
-    function checkUpcomingNotifications() {
-      const upcoming = reminders.filter(r => calculateEventDetails(r.date).daysUntil === 0);
-      if (upcoming.length > 0 && Notification.permission === "granted") {
-        upcoming.forEach(r => {
-          new Notification(`🎉 ${r.type} Today!`, {
-            body: `${r.name}'s ${r.type.toLowerCase()} is today! ${r.notes ? '(' + r.notes + ')' : ''}`
-          });
-        });
       }
     }
   </script>
