@@ -250,34 +250,78 @@
     }
 
     function calculateEventDetails(dateStr) {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+  if (!dateStr || typeof dateStr !== 'string') {
+    return { daysUntil: 999, formattedDate: 'Invalid Date', ageOrYears: null };
+  }
 
-      const targetParts = dateStr.split('-');
-      if (targetParts.length !== 3) return { daysUntil: 999, formattedDate: dateStr, ageOrYears: '' };
+  const cleanStr = dateStr.trim();
+  let year, month, day;
 
-      const birthYear = parseInt(targetParts[0]);
-      const month = parseInt(targetParts[1]) - 1;
-      const day = parseInt(targetParts[2]);
-
-      let nextEventDate = new Date(today.getFullYear(), month, day);
-      nextEventDate.setHours(0, 0, 0, 0);
-
-      if (nextEventDate < today) {
-        nextEventDate.setFullYear(today.getFullYear() + 1);
+  // Case 1: Formatted with slashes e.g. "10/28/1995" or "10/28/95"
+  if (cleanStr.includes('/')) {
+    const parts = cleanStr.split('/');
+    if (parts.length === 3) {
+      // If year is first: YYYY/MM/DD
+      if (parts[0].length === 4) {
+        year = parseInt(parts[0], 10);
+        month = parseInt(parts[1], 10) - 1;
+        day = parseInt(parts[2], 10);
+      } else {
+        // Standard US format: MM/DD/YYYY
+        month = parseInt(parts[0], 10) - 1;
+        day = parseInt(parts[1], 10);
+        year = parseInt(parts[2], 10);
+        if (year < 100) year += year > 30 ? 1900 : 2000; // Handle 2-digit years
       }
-
-      const diffTime = nextEventDate - today;
-      const daysUntil = Math.round(diffTime / (1000 * 60 * 60 * 24));
-
-      const yearsCalc = nextEventDate.getFullYear() - birthYear;
-
-      return {
-        daysUntil,
-        nextDate: nextEventDate,
-        ageOrYears: yearsCalc > 0 ? yearsCalc : null
-      };
     }
+  } 
+  // Case 2: Formatted with dashes e.g. "1995-10-28"
+  else if (cleanStr.includes('-')) {
+    const parts = cleanStr.split('-');
+    if (parts.length === 3) {
+      if (parts[0].length === 4) {
+        // ISO Format: YYYY-MM-DD
+        year = parseInt(parts[0], 10);
+        month = parseInt(parts[1], 10) - 1;
+        day = parseInt(parts[2], 10);
+      } else {
+        // MM-DD-YYYY
+        month = parseInt(parts[0], 10) - 1;
+        day = parseInt(parts[1], 10);
+        year = parseInt(parts[2], 10);
+      }
+    }
+  }
+
+  // Validate parsed values
+  if (isNaN(year) || isNaN(month) || isNaN(day) || month < 0 || month > 11 || day < 1 || day > 31) {
+    return { daysUntil: 999, formattedDate: cleanStr, ageOrYears: null };
+  }
+
+  // Calculate current date normalized to midnight
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // Target date normalized to midnight for accurate calculation
+  let nextEventDate = new Date(today.getFullYear(), month, day);
+  nextEventDate.setHours(0, 0, 0, 0);
+
+  // If the event date already passed this year, check next year
+  if (nextEventDate < today) {
+    nextEventDate.setFullYear(today.getFullYear() + 1);
+  }
+
+  const diffTime = nextEventDate - today;
+  const daysUntil = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+  const ageOrYears = nextEventDate.getFullYear() - year;
+
+  return {
+    daysUntil,
+    nextDate: nextEventDate,
+    ageOrYears: ageOrYears > 0 ? ageOrYears : null
+  };
+}
 
     function renderApp() {
       filterReminders();
@@ -387,12 +431,10 @@
     }
 
     function formatDateDisplay(dateStr) {
-      if (!dateStr) return '';
-      const parts = dateStr.split('-');
-      if (parts.length !== 3) return dateStr;
-      const dateObj = new Date(parts[0], parts[1] - 1, parts[2]);
-      return dateObj.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-    }
+  const details = calculateEventDetails(dateStr);
+  if (details.daysUntil === 999 || !details.nextDate) return dateStr;
+  return details.nextDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
 
     function openAddModal() {
       document.getElementById('modal-title').innerText = 'Add New Person';
