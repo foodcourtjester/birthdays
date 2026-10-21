@@ -61,7 +61,7 @@
           </div>
           <h2 class="text-lg font-semibold text-rose-200">Coming Up in the Next 7 Days</h2>
         </div>
-        <div id="upcoming-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 relative z-10"></div>
+        <div id="upcoming-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 relative z-10"></div>
       </div>
     </section>
 
@@ -86,7 +86,7 @@
       <div class="flex items-center justify-between mb-4">
         <h3 class="text-sm font-semibold uppercase tracking-wider text-slate-400">All Reminders (<span id="total-count">0</span>)</h3>
       </div>
-      <div id="reminders-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+      <div id="reminders-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
     </section>
   </main>
 
@@ -357,7 +357,7 @@
           const badgeColor = details.daysUntil === 0 ? 'bg-rose-500 text-white animate-bounce' : 'bg-rose-500/20 text-rose-300';
           
           return `
-            <div class="bg-slate-900/90 border border-rose-500/30 rounded-xl p-4 flex items-center justify-between shadow-md">
+            <div class="bg-slate-900/90 border border-rose-500/30 rounded-xl p-3 flex items-center justify-between shadow-md">
               <div class="space-y-1">
                 <div class="flex items-center gap-2">
                   <span class="text-xs font-semibold px-2 py-0.5 rounded-md ${badgeColor}">${dayText}</span>
@@ -392,7 +392,7 @@
           const dayText = details.daysUntil === 0 ? 'Today!' : details.daysUntil === 1 ? 'Tomorrow' : `In ${details.daysUntil} days`;
 
           return `
-            <div class="bg-slate-900 border border-slate-800/80 hover:border-slate-700 rounded-2xl p-5 shadow-lg flex flex-col justify-between transition group">
+            <div class="bg-slate-900 border border-slate-800/80 hover:border-slate-700 rounded-2xl p-3 shadow-md flex flex-col justify-between transition group">
               <div>
                 <div class="flex items-center justify-between mb-3">
                   <span class="text-xs px-2.5 py-1 rounded-lg font-medium ${r.type === 'Birthday' ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' : 'bg-pink-500/10 text-pink-400 border border-pink-500/20'}">
