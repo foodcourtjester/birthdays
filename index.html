@@ -163,7 +163,7 @@
 
       // 2. Fetch reminders.csv from server/repository folder
       try {
-        const response = await fetch('./reminders.csv');
+        const response = await fetch('./reminders.csv?v=' + new Date().getTime());
         if (response.ok) {
           const csvText = await response.text();
           reminders = parseCSV(csvText);
