@@ -1,4 +1,4 @@
-const CACHE_NAME = 'reminder-pwa-v1.4';
+const CACHE_NAME = 'reminder-pwa-v1.41';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
